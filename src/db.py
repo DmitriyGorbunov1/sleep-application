@@ -39,13 +39,40 @@ class Database:
     def __init__(self, Session):
         self.Session = Session
 
-    def get(self, value, object=User, by=User.email):
-        with closing(self.Session()) as session:
-            return session.query(object).filter(by == value).first()
+    def with_session(function):
+        def wrapper(self, *args, **kwargs):
+            session = None
+            result = None
 
-    def add(self, object):
-        with closing(self.Session()) as session:
-            session.add(object)
+            try:
+                session = self.Session()
+                result = function(self, *args, **kwargs, session=session)
+            except Exception as ex:
+                print(ex)
+                if session is not None:
+                    session.rollback()
+            if session is not None:
+                session.close()
+
+            return result
+        
+        return wrapper
+    
+
+    @with_session
+    def get(self, value, object=User, by=User.email, session=None):
+        return session.query(object).filter(by == value).first()
+
+    @with_session
+    def add(self, object, session=None):
+        session.add(object)
+        session.commit()
+
+    @with_session
+    def delete(self, value, object=User, by=User.email, session=None):
+        obj = session.query(object).filter(by == value).first()
+        if obj is not None:
+            session.delete(obj)
             session.commit()
 
     def delete(self, value, object=User, by=User.email):
