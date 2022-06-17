@@ -75,38 +75,16 @@ class Database:
             session.delete(obj)
             session.commit()
 
-    def delete(self, value, object=User, by=User.email):
-        with closing(self.Session()) as session:
-            obj = session.query(object).filter(by == value).first()
+    @with_session
+    def update(self, value, new_object, by=User.email, session=None):
+        obj = session.query(type(new_object)).filter(by == value).first()
+        
+        if obj is not None:
+            # gets public object class' fields
+            keys = [elem for elem in vars(type(new_object)).keys() if not elem.startswith("_") and elem != "id"]
             
-            if obj is not None:
-                session.delete(obj)
-                session.commit()
+            for key in keys:
+                if hasattr(obj, key):
+                    setattr(obj, key, getattr(new_object, key))
 
-    def update_user(self, value, new_values: dict, by=User.email):
-        with closing(self.Session()) as session:
-            obj = session.query(User).filter(by == value).first()
-            
-            if obj is not None:
-                keys = new_values.keys()
-                if "email" in keys:
-                    obj.email = new_values["email"]
-                if "name" in keys:
-                    obj.name = new_values["name"]
-                # TODO set, get pwd
-                if "password" in keys:
-                    pass
-                if "goal" in keys:
-                    obj.goal = new_values["goal"]
-                if "age_group" in keys:
-                    obj.age_group = new_values["age_group"]
-                if "wakeup_time" in keys:
-                    obj.wakeup_time = new_values["wakeup_time"]
-                if "bedtime" in keys:
-                    obj.bedtime = new_values["bedtime"]
-                if "goodsleep_hours" in keys:
-                    obj.goodsleep_hours = new_values["goodsleep_hours"]
-                if "regime_compliance" in keys:
-                    obj.regime_compliance = new_values["regime_compliance"]
-                
-                session.commit()
+            session.commit()
