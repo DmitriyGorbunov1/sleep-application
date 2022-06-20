@@ -1,11 +1,21 @@
-from sqlalchemy import Column, DateTime, Integer, String, Boolean, ForeignKey
+from typing import Collection
+from sqlalchemy import Column, Date, DateTime, Float, Integer, String, Boolean, ForeignKey
 from sqlalchemy.orm import relationship
 from sqlalchemy.ext.declarative import declarative_base
 
 
+class RepresentableTable():
+    def __repr__(self):
+        childs = ["session", "statistics"]
+        keys = [elem for elem in vars(type(self)).keys() if not elem.startswith("_") and elem not in childs]
+        keys = ["__tablename__"] + keys
+        output = [f"{key}: {repr(getattr(self, key))}" for key in keys]
+        return "\n".join(output)
+        
+
 DeclarativeBase = declarative_base()
 
-class User(DeclarativeBase):
+class User(DeclarativeBase, RepresentableTable):
     __tablename__ = "user"
     id = Column(Integer, primary_key=True)
     email = Column(String)
@@ -19,23 +29,22 @@ class User(DeclarativeBase):
     goodsleep_hours = Column(Integer)
     regime_compliance = Column(Boolean)
     session = relationship("AuthSession", cascade="all, delete-orphan")
+    statistics = relationship("Statistics", cascade="all, delete-orphan")
 
-    def __repr__(self):
-        output = f"table: {self.__tablename__}\n"
-        output += f"id: {repr(self.id)}\n"
-        output += f"email: {repr(self.email)}\n"
-        output += f"name: {repr(self.name)}\n"
-        output += f"hash: {repr(self.hash)}\n"
-        output += f"salt: {repr(self.salt)}\n"
-        output += f"goal: {repr(self.goal)}\n"
-        output += f"age_group: {repr(self.age_group)}\n"
-        output += f"wakeup_time: {repr(self.wakeup_time)}\n"
-        output += f"bedtime: {repr(self.bedtime)}\n"
-        output += f"goodsleep_hours: {repr(self.goodsleep_hours)}\n"
-        output += f"regime_compliance: {repr(self.regime_compliance)}\n"
-        return output
+class Statistics(DeclarativeBase, RepresentableTable):
+    __tablename__ = "statistics"
+    id = Column(Integer, primary_key=True)
+    user_id = Column(Integer, ForeignKey("user.id"))
+    date = Column(String)
+    sleep_hours = Column(String)
+    wakeup_time = Column(String)
+    bedtime = Column(String)
+    fastsleep_time = Column(String)
+    slowsleep_time = Column(String)
+    gotobed_time = Column(String)
+    sleep_quality = Column(Integer)
 
-class AuthSession(DeclarativeBase):
+class AuthSession(DeclarativeBase, RepresentableTable):
     __tablename__ = "auth_session"
     id = Column(Integer, primary_key=True)
     user_id = Column(Integer, ForeignKey("user.id"))
@@ -43,14 +52,6 @@ class AuthSession(DeclarativeBase):
     create_date = Column(DateTime)
     expire_date = Column(DateTime)
 
-    def __repr__(self):
-        output = f"table: {self.__tablename__}\n"
-        output += f"id: {repr(self.id)}\n"
-        output += f"user_id: {repr(self.user_id)}\n"
-        output += f"session_id: {repr(self.session_id)}\n"
-        output += f"create_date: {repr(self.create_date)}\n"
-        output += f"expire_date: {repr(self.expire_date)}\n"
-        return output
 
 class Database:
     def __init__(self, Session):
@@ -107,9 +108,10 @@ class Database:
             session.commit()
 
     @with_session
-    def append_session(self, value, child, by=User.email, session=None):
-        obj = session.query(User).filter(by == value).first()
+    def append_child(self, value, childfield, child, obj=None, object=User, by=User.email, session=None):
+        if obj is None:
+            obj = session.query(object).filter(by == value).first()
         
         if obj is not None:
-            obj.session.append(child)
+            getattr(obj, childfield).append(child)
             session.commit()
