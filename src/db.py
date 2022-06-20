@@ -1,7 +1,6 @@
-from sqlalchemy import Column, Integer, String, DateTime, Boolean
+from sqlalchemy import Column, DateTime, Integer, String, Boolean, ForeignKey
+from sqlalchemy.orm import relationship
 from sqlalchemy.ext.declarative import declarative_base
-
-from contextlib import closing
 
 
 DeclarativeBase = declarative_base()
@@ -11,14 +10,15 @@ class User(DeclarativeBase):
     id = Column(Integer, primary_key=True)
     email = Column(String)
     name = Column(String)
-    hash = Column(String) # pwd
-    salt = Column(String) # pwd
+    hash = Column(String)
+    salt = Column(String)
     goal = Column(Integer)
     age_group = Column(Integer)
-    wakeup_time = Column(DateTime)
-    bedtime = Column(DateTime)
+    wakeup_time = Column(String)
+    bedtime = Column(String)
     goodsleep_hours = Column(Integer)
     regime_compliance = Column(Boolean)
+    session = relationship("AuthSession", cascade="all, delete-orphan")
 
     def __repr__(self):
         output = f"table: {self.__tablename__}\n"
@@ -35,6 +35,23 @@ class User(DeclarativeBase):
         output += f"regime_compliance: {repr(self.regime_compliance)}\n"
         return output
 
+class AuthSession(DeclarativeBase):
+    __tablename__ = "auth_session"
+    id = Column(Integer, primary_key=True)
+    user_id = Column(Integer, ForeignKey("user.id"))
+    session_id = Column(String)
+    create_date = Column(DateTime)
+    expire_date = Column(DateTime)
+
+    def __repr__(self):
+        output = f"table: {self.__tablename__}\n"
+        output += f"id: {repr(self.id)}\n"
+        output += f"user_id: {repr(self.user_id)}\n"
+        output += f"session_id: {repr(self.session_id)}\n"
+        output += f"create_date: {repr(self.create_date)}\n"
+        output += f"expire_date: {repr(self.expire_date)}\n"
+        return output
+
 class Database:
     def __init__(self, Session):
         self.Session = Session
@@ -46,7 +63,7 @@ class Database:
 
             try:
                 session = self.Session()
-                result = function(self, *args, **kwargs, session=session)
+                result = function(self, session=session, *args, **kwargs)
             except Exception as ex:
                 print(ex)
                 if session is not None:
@@ -87,4 +104,12 @@ class Database:
                 if hasattr(obj, key):
                     setattr(obj, key, getattr(new_object, key))
 
+            session.commit()
+
+    @with_session
+    def append_session(self, value, child, by=User.email, session=None):
+        obj = session.query(User).filter(by == value).first()
+        
+        if obj is not None:
+            obj.session.append(child)
             session.commit()
