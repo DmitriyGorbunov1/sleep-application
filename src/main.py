@@ -41,7 +41,7 @@ def verify_session(function):
     
     return wrapper
 
-async def create_session(user: User, is_user_created=False):
+async def create_session(user: User, is_user_created=True):
     session_id = uuid4()
     create_date = datetime.now()
     expire_date = create_date.replace(year=create_date.year + 1)
@@ -64,16 +64,10 @@ async def post_register(user: UserModel):
     db_user.salt = uuid4().hex
     db_user.hash = md5((user.password + db_user.salt).encode()).hexdigest()
     # Session
-    session_id = await create_session(db_user)
+    session_id = await create_session(db_user, is_user_created=False)
     db.add(db_user)
 
     return str(session_id)
-
-# verify_session example
-# @app.get("/whoami")
-# @verify_session
-# async def whoami(session_id: str, user=None):
-# return user
 
 @app.post("/login")
 async def post_login(user: LoginModel):
