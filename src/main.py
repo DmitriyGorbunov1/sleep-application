@@ -1,3 +1,4 @@
+from os import environ
 from functools import wraps
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
@@ -12,7 +13,7 @@ from src.models.stats import StatisticsModel
 
 
 # format: postgresql://user:password@host:port/dbname[?key=value&key=value...]
-engine = create_engine("postgresql://postgres:root@127.0.0.1:5432/test")
+engine = create_engine(f"postgresql://postgres:{environ['DB_PASSWORD']}@127.0.0.1:5432/main")
 
 # DeclarativeBase.metadata.drop_all(bind=engine)
 DeclarativeBase.metadata.create_all(bind=engine)
